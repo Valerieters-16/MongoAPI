@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Courses & Students</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h2 { margin-top: 40px; }
+    input, button { padding: 5px 10px; margin: 5px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    tr:nth-child(even) { background-color: #f9f9f9; }
+    .section { margin-bottom: 40px; }
+  </style>
+</head>
+<body>
+  <h1>📘 Course & Student Management</h1>
+  <button id="seedBtn">Seed Demo Data</button>
+
+  <div class="section">
+    <h2>Courses</h2>
+    <form id="courseForm">
+      <input type="text" id="courseTitle" placeholder="Course Title" required />
+      <input type="text" id="courseCode" placeholder="Course Code" required />
+      <button type="submit">Add Course</button>
+    </form>
+    <table id="coursesTable">
+      <thead><tr><th>Title</th><th>Code</th><th>Action</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Students</h2>
+    <form id="studentForm">
+      <input type="text" id="studentName" placeholder="Student Name" required />
+      <input type="email" id="studentEmail" placeholder="Email (optional)" />
+      <button type="submit">Add Student</button>
+    </form>
+    <table id="studentsTable">
+      <thead><tr><th>Name</th><th>Email</th><th>Registered Courses</th><th>Action</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script>
+    const API_BASE = "/api";
+
+    document.getElementById("seedBtn").addEventListener("click", async () => {
+      await fetch(`${API_BASE}/seed`, { method: "POST" });
+      loadAll();
+    });
+
+    // === Courses ===
+    async function loadCourses() {
+      const res = await fetch(`${API_BASE}/courses`);
+      const data = await res.json();
+      const tbody = document.querySelector("#coursesTable tbody");
+      tbody.innerHTML = "";
+      data.forEach(c => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${c.title}</td>
+          <td>${c.code}</td>
+          <td><button onclick="deleteCourse('${c._id}')">Delete</button></td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function deleteCourse(id) {
+      if (!confirm("Delete this course?")) return;
+      await fetch(`${API_BASE}/courses/${id}`, { method: "DELETE" });
+      loadCourses();
+    }
+
+    document.getElementById("courseForm").addEventListener("submit", async e => {
+      e.preventDefault();
+      const title = document.getElementById("courseTitle").value;
+      const code = document.getElementById("courseCode").value;
+      await fetch(`${API_BASE}/courses`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, code })
+      });
+      e.target.reset();
+      loadCourses();
+    });
+
+    // === Students ===
+    async function loadStudents() {
+      const res = await fetch(`${API_BASE}/students`);
+      const data = await res.json();
+      const tbody = document.querySelector("#studentsTable tbody");
+      tbody.innerHTML = "";
+      data.forEach(s => {
+        const courseList = (s.registeredCourses || [])
+          .map(rc => `${rc.title} (${rc.code})`)
+          .join(", ") || "<i>None</i>";
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${s.name}</td>
+          <td>${s.email || "-"}</td>
+          <td>${courseList}</td>
+          <td><button onclick="deleteStudent('${s._id}')">Delete</button></td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function deleteStudent(id) {
+      if (!confirm("Delete this student?")) return;
+      await fetch(`${API_BASE}/students/${id}`, { method: "DELETE" });
+      loadStudents();
+    }
+
+    document.getElementById("studentForm").addEventListener("submit", async e => {
+      e.preventDefault();
+      const name = document.getElementById("studentName").value;
+      const email = document.getElementById("studentEmail").value;
+      await fetch(`${API_BASE}/students`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email })
+      });
+      e.target.reset();
+      loadStudents();
+    });
+
+    async function loadAll() {
+      await loadCourses();
+      await loadStudents();
+    }
+
+    loadAll();
+  </script>
+</body>
+</html>
