@@ -1,0 +1,84 @@
+//Server training code
+
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import { ObjectId } from "mongodb";
+import { connectDB, getDB} from "./db.js";
+
+dotenv.config();
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+await connectDB();
+const db = getDB();
+const coursesCol = db.collection(process.env.COURSES_COLLECION);
+const studentsCol = db.collection(process.env.STUDENTS_COLLECTION);
+
+app.get('/api/heartbeat', (req,res)=>{
+    res.json({ok:true});
+})
+
+app.get('/api/courses', async (req,res)=>{
+    const list = await coursesCol.find({}).toArray();
+    res.status(200).json(list);
+})
+
+app.get('/api/courses/:code', async (req,res)=>{
+    const list = await coursesCol.findOne({code:req.params.code});
+    res.status(200).json(list);
+}) 
+
+app.put('/api/courses/:code', async (req,res)=>{
+    const _code = req.body.code;
+    const _title = req.body.title;
+    const _credit_nbr = req.body.credit_nbr;
+    const list = await coursesCol.findOneAndUpdate({code:req.params.code},{$set: {code:_code,title:_title,creditNbr:_credit_nbr}});
+    res.status(200).send('Ok');
+}) 
+
+// app.delete('/api/courses/:code', async (req,res)=>{
+//     const _code = req.params.code;
+//     const list = await coursesCol.deleteOne({code: _code})
+//     res.status(200).send("Deleted")
+// })
+
+// app.post('/api/courses', async (req,res)=>{
+//     const _code = req.body.code;
+//     const _title = req.body.title;
+
+//     if (!_code || !_title){
+//         return res.status(500).json({error: 'Code & Title are mandatory'})
+//     }
+
+//     const _exists = await coursesCol.findOne({code:_code});
+//     if(!_exists)
+//     {
+//         await coursesCol.insertOne({code:_code,title:_title});
+//     }
+//     else
+//     {
+//         res.status(400).json({error: 'Course code already exists!!!'})
+//     }
+//     res.status(200).json('Mishi el 7al')
+// })
+
+app.post("/api/courses", async (req,res)=>{
+    const { title, code } = req.body; //Destructive Operator
+    if(!title || !code) return res.status(400).json({ error: "Title and Code are required"});
+    const exists = await coursesCol.findOne({ code });
+    if (exists) return res.status(409).json({ error: "Course code already exists" });
+    const result = await coursesCol.insertOne({ title,code });
+    const saved = await coursesCol.findOne({ _id: result.insertedId });
+    res.status(201).json(saved);
+})
+
+app.delete('/api/courses/:id', async (req,res)=>{
+    const list = await coursesCol.deleteOne({_id: new ObjectId(req.params.id)})
+    res.status(200).send("Deleted")
+})
+
+const port= process.env.PORT || 3000;
+app.listen(port, () => console.log(`Server http://localhost:${port}`));
