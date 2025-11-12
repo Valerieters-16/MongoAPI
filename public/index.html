@@ -3,15 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Courses & Students</title>
+  <title>Course & Student Management</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { margin-bottom: 10px; }
     h2 { margin-top: 40px; }
-    input, button { padding: 5px 10px; margin: 5px; }
+    input, select, button { padding: 6px; margin: 4px; }
     table { border-collapse: collapse; width: 100%; margin-top: 10px; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
     tr:nth-child(even) { background-color: #f9f9f9; }
     .section { margin-bottom: 40px; }
+    .enroll-section { background: #f5f5f5; padding: 10px; border-radius: 8px; }
   </style>
 </head>
 <body>
@@ -39,25 +41,40 @@
       <button type="submit">Add Student</button>
     </form>
     <table id="studentsTable">
-      <thead><tr><th>Name</th><th>Email</th><th>Registered Courses</th><th>Action</th></tr></thead>
+      <thead>
+        <tr><th>Name</th><th>Email</th><th>Registered Courses</th><th>Action</th></tr>
+      </thead>
       <tbody></tbody>
     </table>
   </div>
 
+  <div class="section enroll-section">
+    <h2>🎓 Register / Unregister Student in Course</h2>
+    <form id="enrollForm">
+      <select id="studentSelect" required></select>
+      <select id="courseSelect" required></select>
+      <button type="submit">Register</button>
+      <button type="button" id="unregisterBtn">Unregister</button>
+    </form>
+  </div>
+
   <script>
-    const API_BASE = "/api";
+    // === CONFIG ===
+    const API_BASE = "https://mongoapi-hnzx.onrender.com/api"; // ⚠️ if using Live Server, change to "http://localhost:3000/api"
 
     document.getElementById("seedBtn").addEventListener("click", async () => {
       await fetch(`${API_BASE}/seed`, { method: "POST" });
       loadAll();
     });
 
-    // === Courses ===
+    // === COURSES ===
     async function loadCourses() {
       const res = await fetch(`${API_BASE}/courses`);
       const data = await res.json();
       const tbody = document.querySelector("#coursesTable tbody");
+      const select = document.getElementById("courseSelect");
       tbody.innerHTML = "";
+      select.innerHTML = "<option value=''>Select Course</option>";
       data.forEach(c => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
@@ -65,13 +82,18 @@
           <td>${c.code}</td>
           <td><button onclick="deleteCourse('${c._id}')">Delete</button></td>`;
         tbody.appendChild(tr);
+
+        const opt = document.createElement("option");
+        opt.value = c._id;
+        opt.textContent = `${c.title} (${c.code})`;
+        select.appendChild(opt);
       });
     }
 
     async function deleteCourse(id) {
       if (!confirm("Delete this course?")) return;
       await fetch(`${API_BASE}/courses/${id}`, { method: "DELETE" });
-      loadCourses();
+      loadAll();
     }
 
     document.getElementById("courseForm").addEventListener("submit", async e => {
@@ -84,15 +106,17 @@
         body: JSON.stringify({ title, code })
       });
       e.target.reset();
-      loadCourses();
+      loadAll();
     });
 
-    // === Students ===
+    // === STUDENTS ===
     async function loadStudents() {
       const res = await fetch(`${API_BASE}/students`);
       const data = await res.json();
       const tbody = document.querySelector("#studentsTable tbody");
+      const select = document.getElementById("studentSelect");
       tbody.innerHTML = "";
+      select.innerHTML = "<option value=''>Select Student</option>";
       data.forEach(s => {
         const courseList = (s.registeredCourses || [])
           .map(rc => `${rc.title} (${rc.code})`)
@@ -104,13 +128,18 @@
           <td>${courseList}</td>
           <td><button onclick="deleteStudent('${s._id}')">Delete</button></td>`;
         tbody.appendChild(tr);
+
+        const opt = document.createElement("option");
+        opt.value = s._id;
+        opt.textContent = s.name;
+        select.appendChild(opt);
       });
     }
 
     async function deleteStudent(id) {
       if (!confirm("Delete this student?")) return;
       await fetch(`${API_BASE}/students/${id}`, { method: "DELETE" });
-      loadStudents();
+      loadAll();
     }
 
     document.getElementById("studentForm").addEventListener("submit", async e => {
@@ -123,7 +152,41 @@
         body: JSON.stringify({ name, email })
       });
       e.target.reset();
-      loadStudents();
+      loadAll();
+    });
+
+    // === REGISTER / UNREGISTER ===
+    document.getElementById("enrollForm").addEventListener("submit", async e => {
+      e.preventDefault();
+      const studentId = document.getElementById("studentSelect").value;
+      const courseId = document.getElementById("courseSelect").value;
+      if (!studentId || !courseId) return alert("Select both student and course");
+
+      const res = await fetch(`${API_BASE}/students/${studentId}/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ courseId })
+      });
+
+      if (res.status === 409) {
+        alert("Already registered in this course");
+      } else if (!res.ok) {
+        alert("Registration failed");
+      }
+      loadAll();
+    });
+
+    document.getElementById("unregisterBtn").addEventListener("click", async () => {
+      const studentId = document.getElementById("studentSelect").value;
+      const courseId = document.getElementById("courseSelect").value;
+      if (!studentId || !courseId) return alert("Select both student and course");
+
+      await fetch(`${API_BASE}/students/${studentId}/unregister`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ courseId })
+      });
+      loadAll();
     });
 
     async function loadAll() {
