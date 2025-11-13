@@ -118,7 +118,7 @@ saveEditBtn.addEventListener("click", async () => {
   if (!name) return alert("Name cannot be empty.");
 
   try {
-    const res = await fetch(`${API_BASE}/student/${currentEditId}`, {
+    const res = await fetch(`${API_BASE}/students/${currentEditId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, email })
