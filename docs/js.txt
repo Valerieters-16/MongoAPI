@@ -1,0 +1,138 @@
+
+    // === CONFIG ===
+    const API_BASE = "https://mongoapi-hnzx.onrender.com/api"; // ⚠️ if using Live Server, change to "http://localhost:3000/api"
+
+    document.getElementById("seedBtn").addEventListener("click", async () => {
+      await fetch(`${API_BASE}/seed`, { method: "POST" });
+      loadAll();
+    });
+
+    // === COURSES ===
+    async function loadCourses() {
+      const res = await fetch(`${API_BASE}/courses`);
+      const data = await res.json();
+      const tbody = document.querySelector("#coursesTable tbody");
+      const select = document.getElementById("courseSelect");
+      tbody.innerHTML = "";
+      select.innerHTML = "<option value=''>Select Course</option>";
+      data.forEach(c => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${c.title}</td>
+          <td>${c.code}</td>
+          <td><button class="edit-btn" data-id="${student._id}">Edit</button>
+          <button onclick="deleteCourse('${c._id}')">Delete</button></td>`;
+        tbody.appendChild(tr);
+
+        const opt = document.createElement("option");
+        opt.value = c._id;
+        opt.textContent = `${c.title} (${c.code})`;
+        select.appendChild(opt);
+      });
+    }
+
+    async function deleteCourse(id) {
+      if (!confirm("Delete this course?")) return;
+      await fetch(`${API_BASE}/courses/${id}`, { method: "DELETE" });
+      loadAll();
+    }
+
+    document.getElementById("courseForm").addEventListener("submit", async e => {
+      e.preventDefault();
+      const title = document.getElementById("courseTitle").value;
+      const code = document.getElementById("courseCode").value;
+      await fetch(`${API_BASE}/courses`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, code })
+      });
+      e.target.reset();
+      loadAll();
+    });
+
+    // === STUDENTS ===
+    async function loadStudents() {
+      const res = await fetch(`${API_BASE}/students`);
+      const data = await res.json();
+      const tbody = document.querySelector("#studentsTable tbody");
+      const select = document.getElementById("studentSelect");
+      tbody.innerHTML = "";
+      select.innerHTML = "<option value=''>Select Student</option>";
+      data.forEach(s => {
+        const courseList = (s.registeredCourses || [])
+          .map(rc => `${rc.title} (${rc.code})`)
+          .join(", ") || "<i>None</i>";
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${s.name}</td>
+          <td>${s.email || "-"}</td>
+          <td>${courseList}</td>
+          <td><button onclick="deleteStudent('${s._id}')">Delete</button></td>`;
+        tbody.appendChild(tr);
+
+        const opt = document.createElement("option");
+        opt.value = s._id;
+        opt.textContent = s.name;
+        select.appendChild(opt);
+      });
+    }
+
+    async function deleteStudent(id) {
+      if (!confirm("Delete this student?")) return;
+      await fetch(`${API_BASE}/students/${id}`, { method: "DELETE" });
+      loadAll();
+    }
+
+    document.getElementById("studentForm").addEventListener("submit", async e => {
+      e.preventDefault();
+      const name = document.getElementById("studentName").value;
+      const email = document.getElementById("studentEmail").value;
+      await fetch(`${API_BASE}/students`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email })
+      });
+      e.target.reset();
+      loadAll();
+    });
+
+    // === REGISTER / UNREGISTER ===
+    document.getElementById("enrollForm").addEventListener("submit", async e => {
+      e.preventDefault();
+      const studentId = document.getElementById("studentSelect").value;
+      const courseId = document.getElementById("courseSelect").value;
+      if (!studentId || !courseId) return alert("Select both student and course");
+
+      const res = await fetch(`${API_BASE}/students/${studentId}/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ courseId })
+      });
+
+      if (res.status === 409) {
+        alert("Already registered in this course");
+      } else if (!res.ok) {
+        alert("Registration failed");
+      }
+      loadAll();
+    });
+
+    document.getElementById("unregisterBtn").addEventListener("click", async () => {
+      const studentId = document.getElementById("studentSelect").value;
+      const courseId = document.getElementById("courseSelect").value;
+      if (!studentId || !courseId) return alert("Select both student and course");
+
+      await fetch(`${API_BASE}/students/${studentId}/unregister`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ courseId })
+      });
+      loadAll();
+    });
+
+    async function loadAll() {
+      await loadCourses();
+      await loadStudents();
+    }
+
+    loadAll();
